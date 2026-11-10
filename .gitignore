@@ -1,0 +1,11 @@
+.env
+.venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+*.egg-info/
+.kiro/settings/mcp.json
+
+# Local repository index and project-specific review rules
+data/
+review-rules/

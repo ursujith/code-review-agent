@@ -1,0 +1,1 @@
+Create the initial migration after installing dependencies: alembic init -t async migrations, configure env.py to import app.models and Base.metadata, then run alembic revision --autogenerate -m 'initial schema' and alembic upgrade head. This migration bootstrap is intentionally left for the next implementation step so it can be generated against the selected database version.

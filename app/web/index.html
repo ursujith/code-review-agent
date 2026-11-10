@@ -1,0 +1,83 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>AI Code Review Agent</title>
+  <style>
+    :root { color-scheme: light dark; font-family: Inter, Segoe UI, Arial, sans-serif; }
+    body { margin:0; background:Canvas; color:CanvasText; }
+    main { max-width:980px; margin:48px auto; padding:0 20px; }
+    .panel { border:1px solid color-mix(in srgb, CanvasText 18%, transparent); border-radius:16px; padding:24px; margin:18px 0; }
+    h1 { margin:0 0 8px; font-size:30px; }
+    .muted { opacity:.72; }
+    label { display:block; font-weight:600; margin:14px 0 7px; }
+    input { box-sizing:border-box; width:100%; padding:12px; border:1px solid #8888; border-radius:9px; background:Canvas; color:CanvasText; }
+    .row { display:grid; grid-template-columns:1fr 1fr; gap:14px; }
+    button { margin-top:18px; border:0; border-radius:9px; padding:12px 18px; font-weight:700; cursor:pointer; background:#2563eb; color:white; }
+    button:disabled { opacity:.5; cursor:wait; }
+    pre { white-space:pre-wrap; overflow-wrap:anywhere; background:color-mix(in srgb, CanvasText 6%, Canvas); padding:16px; border-radius:10px; max-height:65vh; overflow:auto; }
+    .status { margin-left:12px; }
+    @media(max-width:650px){ .row{grid-template-columns:1fr;} main{margin:24px auto;} }
+  </style>
+</head>
+<body>
+  <main>
+    <h1>AI Code Review Agent</h1>
+    <p class="muted">Sign in with your individual developer access token, then paste a GitLab merge-request URL. The central agent discovers the project group, indexes accessible repositories and reviews the changes. Preview mode is read-only.</p>
+    <section class="panel">
+      <label for="accessToken">Agent access token</label>
+      <input id="accessToken" type="password" autocomplete="off" placeholder="Enter your individual developer access token">
+      <label for="mrUrl">GitLab merge-request URL</label>
+      <input id="mrUrl" type="url" placeholder="https://gitlab.example.com/group/project/-/merge_requests/123">
+      <div class="row">
+        <div>
+          <label for="maxProjects">Maximum repositories to index</label>
+          <input id="maxProjects" type="number" min="1" max="50" value="20">
+        </div>
+        <div>
+          <label for="confidence">Minimum finding confidence (0–1)</label>
+          <input id="confidence" type="number" min="0" max="1" step="0.05" value="0.65">
+        </div>
+      </div>
+      <label><input id="publish" type="checkbox" style="width:auto"> Publish findings to GitLab (explicitly enabled; otherwise preview only)</label>
+      <button id="run">Review merge request</button><span id="status" class="status muted"></span>
+    </section>
+    <section class="panel">
+      <h2>Review result</h2>
+      <pre id="result">Your review will appear here.</pre>
+    </section>
+    <p class="muted">Keep this page on your organization's trusted network. Do not share your access token. GitLab and AI provider credentials remain on the central server.</p>
+  </main>
+  <script>
+    const run = document.getElementById('run');
+    const statusEl = document.getElementById('status');
+    const output = document.getElementById('result');
+    run.addEventListener('click', async () => {
+      const token = document.getElementById('accessToken').value.trim();
+      const url = document.getElementById('mrUrl').value.trim();
+      if (!token || !url) { statusEl.textContent = 'Enter the access token and MR URL.'; return; }
+      run.disabled = true; statusEl.textContent = 'Review running…'; output.textContent = '';
+      try {
+        const response = await fetch('/api/v1/agent/review-merge-request', {
+          method: 'POST',
+          headers: {'Content-Type':'application/json', 'Authorization':`Bearer ${token}`},
+          body: JSON.stringify({
+            merge_request_url: url,
+            publish_comments: document.getElementById('publish').checked,
+            max_workspace_projects: Number(document.getElementById('maxProjects').value),
+            min_confidence: Number(document.getElementById('confidence').value)
+          })
+        });
+        const body = await response.json();
+        if (!response.ok) throw new Error(body.detail || `Request failed (${response.status})`);
+        output.textContent = JSON.stringify(body, null, 2);
+        statusEl.textContent = 'Review completed.';
+      } catch (error) {
+        statusEl.textContent = 'Review failed.';
+        output.textContent = error.message;
+      } finally { run.disabled = false; }
+    });
+  </script>
+</body>
+</html>

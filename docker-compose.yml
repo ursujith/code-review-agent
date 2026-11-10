@@ -1,0 +1,51 @@
+services:
+  api:
+    build: .
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000
+    env_file:
+      - .env
+    ports: ["8000:8000"]
+    volumes:
+      - ./data:/app/data
+    depends_on:
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: review_platform
+      POSTGRES_USER: review
+      POSTGRES_PASSWORD: review_dev_only
+    ports: ["5435:5432"]
+    volumes: [postgres_data:/var/lib/postgresql/data]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U review -d review_platform"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+  redis:
+    image: redis:7-alpine
+    ports: ["6380:6379"]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+  worker:
+    build: .
+    command: celery -A app.jobs.celery_app:celery_app worker --loglevel=INFO --concurrency=${REVIEW_WORKER_CONCURRENCY:-2}
+    env_file:
+      - .env
+    volumes:
+      - ./data:/app/data
+    environment:
+      REDIS_URL: redis://redis:6379/0
+      CELERY_BROKER_URL: redis://redis:6379/0
+      CELERY_RESULT_BACKEND: redis://redis:6379/0
+    depends_on:
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+volumes:
+  postgres_data:

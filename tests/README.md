@@ -1,0 +1,1 @@
+Add API integration tests using an isolated PostgreSQL database. Required first tests: organization A cannot read organization B workspaces/projects; user without membership cannot access tenant; project cannot be created in another tenant's workspace; role restrictions are enforced.
